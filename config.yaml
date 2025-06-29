@@ -1,5 +1,8 @@
+panel:
+  position: top
 sections:
   - name: Applications
+    icon: /usr/share/icons/hicolor/48x48/apps/utilities-terminal.png
     items:
       - name: Firefox
         type: application
@@ -9,11 +12,13 @@ sections:
         type: application
         command: gnome-terminal
   - name: Scripts
+    icon: /usr/share/icons/hicolor/48x48/apps/utilities-system-monitor.png
     items:
       - name: Update Script
         type: script
         command: /home/user/update.sh
   - name: Websites
+    icon: /usr/share/icons/hicolor/48x48/apps/internet-web-browser.png
     items:
       - name: Open GitHub
         type: url

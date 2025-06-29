@@ -69,7 +69,7 @@ class ItemDialog(QtWidgets.QDialog):
 class SectionDialog(QtWidgets.QDialog):
     """Dialog to create or edit sections."""
 
-    def __init__(self, parent: QtWidgets.QWidget | None = None, name: str = "") -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None, name: str = "", icon: str | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Section")
 
@@ -77,10 +77,27 @@ class SectionDialog(QtWidgets.QDialog):
         self.name_edit = QtWidgets.QLineEdit(name)
         layout.addRow("Name", self.name_edit)
 
+        self.icon_edit = QtWidgets.QLineEdit(icon or "")
+        icon_button = QtWidgets.QPushButton("Browse")
+        icon_button.clicked.connect(self._select_icon)
+        icon_layout = QtWidgets.QHBoxLayout()
+        icon_layout.addWidget(self.icon_edit)
+        icon_layout.addWidget(icon_button)
+        layout.addRow("Icon", icon_layout)
+
         button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addRow(button_box)
 
+    def _select_icon(self) -> None:
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Icon", "", "Images (*.png *.svg *.jpg *.jpeg *.bmp)")
+        if path:
+            self.icon_edit.setText(path)
+
     def get_name(self) -> str:
         return self.name_edit.text().strip()
+
+    def get_icon(self) -> str | None:
+        text = self.icon_edit.text().strip()
+        return text or None

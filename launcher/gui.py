@@ -44,7 +44,7 @@ QToolButton:pressed {
 }
 """
 
-from .config import load_config, save_config, CONFIG_PATH
+from .config import load_config, save_config, CONFIG_PATH, load_panel_position
 from .dialogs import ItemDialog, ItemData, SectionDialog
 
 
@@ -91,6 +91,8 @@ class ConfigManager(QtWidgets.QWidget):
         sec_layout = QtWidgets.QHBoxLayout()
         self.section_list = QtWidgets.QListWidget()
         self.section_list.currentRowChanged.connect(self._show_items)
+        self.section_list.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
+        self.section_list.model().rowsMoved.connect(self._sections_reordered)
         sec_buttons = QtWidgets.QVBoxLayout()
         self.add_section_btn = QtWidgets.QPushButton("Add")
         self.add_section_btn.clicked.connect(self._add_section)
@@ -107,6 +109,8 @@ class ConfigManager(QtWidgets.QWidget):
         # --- item list ---
         item_layout = QtWidgets.QHBoxLayout()
         self.item_list = QtWidgets.QListWidget()
+        self.item_list.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
+        self.item_list.model().rowsMoved.connect(self._items_reordered)
         item_buttons = QtWidgets.QVBoxLayout()
         self.add_item_btn = QtWidgets.QPushButton("Add")
         self.add_item_btn.clicked.connect(self._add_item)
@@ -159,7 +163,7 @@ class ConfigManager(QtWidgets.QWidget):
     def _add_section(self) -> None:
         dlg = SectionDialog(self)
         if dlg.exec() == QtWidgets.QDialog.Accepted:
-            self.sections.append({"name": dlg.get_name(), "items": []})
+            self.sections.append({"name": dlg.get_name(), "icon": dlg.get_icon(), "items": []})
             self.section_list.addItem(dlg.get_name())
             self.section_list.setCurrentRow(self.section_list.count() - 1)
 
@@ -167,9 +171,10 @@ class ConfigManager(QtWidgets.QWidget):
         idx = self.section_list.currentRow()
         if idx < 0:
             return
-        dlg = SectionDialog(self, self.sections[idx].get("name", ""))
+        dlg = SectionDialog(self, self.sections[idx].get("name", ""), self.sections[idx].get("icon"))
         if dlg.exec() == QtWidgets.QDialog.Accepted:
             self.sections[idx]["name"] = dlg.get_name()
+            self.sections[idx]["icon"] = dlg.get_icon()
             self.section_list.item(idx).setText(dlg.get_name())
 
     def _remove_section(self) -> None:
@@ -209,6 +214,27 @@ class ConfigManager(QtWidgets.QWidget):
         self.item_list.takeItem(item_idx)
         del self.sections[sec_idx]["items"][item_idx]
 
+    # --- reorder handlers ---
+    def _sections_reordered(self, parent: QtCore.QModelIndex, start: int, end: int, dest: QtCore.QModelIndex, row: int) -> None:
+        if start == row or start == row - 1:
+            return
+        moved = self.sections.pop(start)
+        if row > start:
+            row -= 1
+        self.sections.insert(row, moved)
+
+    def _items_reordered(self, parent: QtCore.QModelIndex, start: int, end: int, dest: QtCore.QModelIndex, row: int) -> None:
+        sec_idx = self.section_list.currentRow()
+        if sec_idx < 0:
+            return
+        items = self.sections[sec_idx].setdefault("items", [])
+        if start == row or start == row - 1:
+            return
+        moved = items.pop(start)
+        if row > start:
+            row -= 1
+        items.insert(row, moved)
+
 
 class LauncherWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
@@ -224,17 +250,27 @@ class LauncherWindow(QtWidgets.QMainWindow):
         )
         self.setWindowFlags(flags)
         screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
-        self._default_height = 80
-        self._settings_height = 480
-        self.setGeometry(0, 0, screen.width(), self._default_height)
-        self.setFixedHeight(self._default_height)
+        self._panel_position = load_panel_position()
+        if self._panel_position in ("left", "right"):
+            self._default_span = 100
+            self._settings_span = 300
+        else:
+            self._default_span = 80
+            self._settings_span = 480
+        self._current_span = self._default_span
+        self._set_panel_geometry(self._default_span)
         self.sections: List[Dict[str, Any]] = []
         self.central = QtWidgets.QWidget()
         self.setCentralWidget(self.central)
         self.layout = QtWidgets.QVBoxLayout(self.central)
         self.layout.setContentsMargins(8, 4, 8, 4)
         self.tabs = QtWidgets.QTabWidget()
-        self.tabs.setTabPosition(QtWidgets.QTabWidget.North)
+        if self._panel_position == "left":
+            self.tabs.setTabPosition(QtWidgets.QTabWidget.West)
+        elif self._panel_position == "right":
+            self.tabs.setTabPosition(QtWidgets.QTabWidget.East)
+        else:
+            self.tabs.setTabPosition(QtWidgets.QTabWidget.North)
         self.layout.addWidget(self.tabs)
         # Interactive config editor
         self.config_editor = ConfigManager()
@@ -318,12 +354,26 @@ class LauncherWindow(QtWidgets.QMainWindow):
         if reason == QtWidgets.QSystemTrayIcon.Trigger:
             self._toggle_visibility()
 
+    def _set_panel_geometry(self, span: int) -> None:
+        screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+        if self._panel_position == "top":
+            self.setFixedHeight(span)
+            self.setGeometry(0, 0, screen.width(), span)
+        elif self._panel_position == "bottom":
+            self.setFixedHeight(span)
+            self.setGeometry(0, screen.height() - span, screen.width(), span)
+        elif self._panel_position == "left":
+            self.setFixedWidth(span)
+            self.setGeometry(0, 0, span, screen.height())
+        else:  # right
+            self.setFixedWidth(span)
+            self.setGeometry(screen.width() - span, 0, span, screen.height())
+
     def _toggle_visibility(self) -> None:
         if self.isVisible():
             self.hide()
         else:
-            screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
-            self.setGeometry(0, 0, screen.width(), self.height())
+            self._set_panel_geometry(self._current_span)
             self.show()
             self.activateWindow()
 
@@ -331,17 +381,16 @@ class LauncherWindow(QtWidgets.QMainWindow):
         """Expand window when Settings tab is active for easier editing."""
         title = self.tabs.tabText(index)
         if title == "Settings":
-            new_height = self._settings_height
+            new_span = self._settings_span
         else:
-            new_height = self._default_height
-        screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
-        self.setFixedHeight(new_height)
-        self.setGeometry(0, 0, screen.width(), new_height)
+            new_span = self._default_span
+        self._current_span = new_span
+        self._set_panel_geometry(new_span)
 
     def add_section(self) -> None:
         dlg = SectionDialog(self)
         if dlg.exec() == QtWidgets.QDialog.Accepted:
-            self.sections.append({"name": dlg.get_name(), "items": []})
+            self.sections.append({"name": dlg.get_name(), "icon": dlg.get_icon(), "items": []})
             save_config(self.sections)
             self.reload_items()
 
@@ -351,9 +400,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         idx = self._select_section("Edit Section", "Select section")
         if idx is None:
             return
-        dlg = SectionDialog(self, self.sections[idx].get("name", ""))
+        dlg = SectionDialog(self, self.sections[idx].get("name", ""), self.sections[idx].get("icon"))
         if dlg.exec() == QtWidgets.QDialog.Accepted:
             self.sections[idx]["name"] = dlg.get_name()
+            self.sections[idx]["icon"] = dlg.get_icon()
             save_config(self.sections)
             self.reload_items()
 
@@ -369,6 +419,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def reload_items(self) -> None:
         """Reload items from configuration and rebuild UI."""
         self.sections = load_config()
+        self._panel_position = load_panel_position()
         while self.tabs.count():
             self.tabs.removeTab(0)
 
@@ -398,11 +449,16 @@ class LauncherWindow(QtWidgets.QMainWindow):
             scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
             scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
 
-            self.tabs.addTab(scroll, section.get("name", ""))
+            sec_icon = QtGui.QIcon()
+            icon_path = section.get("icon")
+            if icon_path and Path(icon_path).exists():
+                sec_icon = QtGui.QIcon(icon_path)
+            self.tabs.addTab(scroll, sec_icon, section.get("name", ""))
 
         # Add settings tab with embedded config editor
         self.config_editor.reload()
         self.tabs.addTab(self.config_editor, "Settings")
+        self._set_panel_geometry(self._current_span)
 
     # --- actions ---
     def launch_item(self, item: Dict[str, Any]) -> None:
@@ -411,10 +467,19 @@ class LauncherWindow(QtWidgets.QMainWindow):
         cmd = item.get("command")
         if not cmd:
             return
-        if typ == "url":
-            webbrowser.open(cmd)
-        else:
-            subprocess.Popen(cmd, shell=True)
+        try:
+            if typ == "url":
+                ok = webbrowser.open(cmd)
+                if not ok:
+                    raise RuntimeError("Unable to open URL")
+            else:
+                subprocess.Popen(cmd, shell=True)
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Launch Failed",
+                f"Failed to launch {item.get('name', '')}: {exc}",
+            )
 
     def add_item(self) -> None:
         if not self.sections:
