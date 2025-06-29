@@ -8,7 +8,6 @@ from .gui import LauncherWindow
 def main() -> None:
     app = QtWidgets.QApplication([])
     window = LauncherWindow()
-    window.show()
     app.exec()
 
 
