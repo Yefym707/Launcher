@@ -117,6 +117,8 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def _create_tray(self) -> None:
         """Set up system tray icon used to toggle the launcher window."""
         icon = QtGui.QIcon.fromTheme("system-run")
+        if icon.isNull():
+            icon = QtGui.QIcon("icon.png")  # your own icon
         self.tray = QtWidgets.QSystemTrayIcon(icon, self)
         self.tray.setToolTip("Launcher")
         menu = QtWidgets.QMenu()
