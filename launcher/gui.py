@@ -97,6 +97,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         while self.tool_box.count():
             self.tool_box.removeItem(0)
 
+
         for section in self.sections:
             widget = QtWidgets.QWidget()
             grid = QtWidgets.QGridLayout(widget)
