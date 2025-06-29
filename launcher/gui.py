@@ -9,36 +9,38 @@ from typing import List, Dict, Any
 
 from PySide6 import QtWidgets, QtGui, QtCore
 
-# Application-wide style sheet for a clean minimalistic look with rounded
-# corners. The palette uses light grays and subtle hover effects.
+# Dark professional style sheet for the panel-like launcher
 APP_STYLE = """
 QWidget {
-    background-color: #f5f5f5;
+    background-color: #2b2b2b;
+    color: #ffffff;
     font-family: Arial, sans-serif;
     font-size: 14px;
 }
-QToolBox::tab {
-    background: #ffffff;
-    border: 1px solid #cccccc;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    margin-top: 2px;
-    padding: 4px 8px;
+QTabWidget::pane {
+    border: none;
 }
-QToolBox::tab:selected {
-    background: #e6e6e6;
+QTabBar::tab {
+    background: #3c3c3c;
+    color: #dddddd;
+    padding: 4px 8px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+QTabBar::tab:selected {
+    background: #555555;
 }
 QToolButton {
-    background: #ffffff;
-    border: 1px solid #cccccc;
-    border-radius: 12px;
+    background: #3c3c3c;
+    border: 1px solid #555555;
+    border-radius: 10px;
     padding: 6px;
 }
 QToolButton:hover {
-    background: #f0f0f0;
+    background: #4c4c4c;
 }
 QToolButton:pressed {
-    background: #e0e0e0;
+    background: #626262;
 }
 """
 
@@ -52,25 +54,27 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Launcher")
         # Apply the global style sheet for a consistent minimalistic look
         self.setStyleSheet(APP_STYLE)
-        # Make the window frameless and stay on top so it behaves more like a
-        # popup launcher rather than a traditional application window.
+        # Make the window a frameless panel that spans the top of the screen
         flags = (
             self.windowFlags()
             | QtCore.Qt.FramelessWindowHint
-            | QtCore.Qt.Tool
             | QtCore.Qt.WindowStaysOnTopHint
         )
         self.setWindowFlags(flags)
+        screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+        self.setGeometry(0, 0, screen.width(), 80)
+        self.setFixedHeight(80)
         self.sections: List[Dict[str, Any]] = []
         self.central = QtWidgets.QWidget()
         self.setCentralWidget(self.central)
         self.layout = QtWidgets.QVBoxLayout(self.central)
-        self.layout.setContentsMargins(10, 10, 10, 10)
-        self.tool_box = QtWidgets.QToolBox()
-        self.tool_box.setFrameShape(QtWidgets.QFrame.NoFrame)
-        self.layout.addWidget(self.tool_box)
+        self.layout.setContentsMargins(8, 4, 8, 4)
+        self.tabs = QtWidgets.QTabWidget()
+        self.tabs.setTabPosition(QtWidgets.QTabWidget.North)
+        self.layout.addWidget(self.tabs)
 
         self._create_menu()
+        self.menuBar().hide()
         self.reload_items()
 
         # Create tray icon used to show or hide the launcher on demand and
@@ -124,6 +128,18 @@ class LauncherWindow(QtWidgets.QMainWindow):
         menu = QtWidgets.QMenu()
         toggle_action = menu.addAction("Show/Hide")
         toggle_action.triggered.connect(self._toggle_visibility)
+        menu.addSeparator()
+        menu.addAction("Add Section", self.add_section)
+        menu.addAction("Edit Section", self.edit_section)
+        menu.addAction("Remove Section", self.remove_section)
+        menu.addSeparator()
+        menu.addAction("Add Item", self.add_item)
+        menu.addAction("Edit Item", self.edit_item)
+        menu.addAction("Remove Item", self.remove_item)
+        menu.addSeparator()
+        menu.addAction("Open config.yaml", lambda: subprocess.Popen(["xdg-open", str(CONFIG_PATH)]))
+        menu.addAction("Reload", self.reload_items)
+        menu.addSeparator()
         quit_action = menu.addAction("Quit")
         quit_action.triggered.connect(QtWidgets.QApplication.quit)
         self.tray.setContextMenu(menu)
@@ -138,6 +154,8 @@ class LauncherWindow(QtWidgets.QMainWindow):
         if self.isVisible():
             self.hide()
         else:
+            screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+            self.setGeometry(0, 0, screen.width(), self.height())
             self.show()
             self.activateWindow()
 
@@ -172,18 +190,16 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def reload_items(self) -> None:
         """Reload items from configuration and rebuild UI."""
         self.sections = load_config()
-        while self.tool_box.count():
-            self.tool_box.removeItem(0)
+        while self.tabs.count():
+            self.tabs.removeTab(0)
 
 
         for section in self.sections:
             widget = QtWidgets.QWidget()
-            grid = QtWidgets.QGridLayout(widget)
-            grid.setSpacing(10)
-            grid.setContentsMargins(0, 0, 0, 0)
+            layout = QtWidgets.QHBoxLayout(widget)
+            layout.setSpacing(10)
+            layout.setContentsMargins(10, 10, 10, 10)
 
-            columns = 4
-            row = col = 0
             for item in section.get("items", []):
                 button = QtWidgets.QToolButton()
                 button.setText(item.get("name", ""))
@@ -191,15 +207,19 @@ class LauncherWindow(QtWidgets.QMainWindow):
                 icon_path = item.get("icon")
                 if icon_path and Path(icon_path).exists():
                     button.setIcon(QtGui.QIcon(icon_path))
-                button.setIconSize(QtCore.QSize(64, 64))
+                button.setIconSize(QtCore.QSize(48, 48))
                 button.clicked.connect(lambda _, it=item: self.launch_item(it))
-                grid.addWidget(button, row, col)
-                col += 1
-                if col >= columns:
-                    col = 0
-                    row += 1
+                layout.addWidget(button)
+            layout.addStretch()
 
-            self.tool_box.addItem(widget, section.get("name", ""))
+            scroll = QtWidgets.QScrollArea()
+            scroll.setWidget(widget)
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+            scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+            scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+
+            self.tabs.addTab(scroll, section.get("name", ""))
 
     # --- actions ---
     def launch_item(self, item: Dict[str, Any]) -> None:

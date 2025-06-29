@@ -5,8 +5,8 @@ This project is a simple customizable launcher written in Python using
 
 ## Features
 
-- **Grid interface** with icons and names for each item.
-- **Organize items into sections** displayed as collapsible lists.
+- **Horizontal panel** with icons and names for each item.
+- **Organize items into tabs** for different sections.
 - **Configurable** via external YAML file (`config.yaml`).
 - Launch applications, scripts and open URLs.
 - Edit items directly from the application or by modifying `config.yaml`.
@@ -24,7 +24,7 @@ pip install -r requirements.txt
 
 Run the launcher from the repository root. The application starts hidden in
 the system tray to keep your desktop uncluttered. Click the tray icon to
-toggle the launcher window:
+toggle a slim panel at the top of the screen:
 
 ```bash
 python -m launcher.main
@@ -35,9 +35,9 @@ file to change sections, buttons, icons and commands.
 
 ### Editing within the app
 
-Use the **Config** menu in the application window to manage sections and
+Use the **Configure** options in the tray icon menu to manage sections and
 items. Changes are saved back to `config.yaml` and the UI can be reloaded
-using the same menu.
+from the same menu.
 
 ## Configuration file format
 
