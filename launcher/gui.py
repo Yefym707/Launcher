@@ -275,12 +275,20 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self._drag_pos: QtCore.QPoint | None = None
 
         self.sections: List[Dict[str, Any]] = []
-        self.central = QtWidgets.QWidget()
-        self.setCentralWidget(self.central)
-        self.layout = QtWidgets.QVBoxLayout(self.central)
+        # Use a tab widget so the main interface and settings are separated
+        self.tabs = QtWidgets.QTabWidget()
+        self.setCentralWidget(self.tabs)
+
+        # --- launcher page ---
+        self.launcher_page = QtWidgets.QWidget()
+        self.layout = QtWidgets.QHBoxLayout(self.launcher_page)
         self.layout.setContentsMargins(8, 4, 8, 4)
         self.section_widgets: List[CollapsibleSection] = []
+        self.tabs.addTab(self.launcher_page, "Launcher")
+
+        # --- settings page ---
         self.config_editor = ConfigManager()
+        self.tabs.addTab(self.config_editor, "Settings")
 
         self._create_menu()
         self.menuBar().hide()
@@ -417,8 +425,6 @@ class LauncherWindow(QtWidgets.QMainWindow):
             self.layout.removeWidget(w)
             w.deleteLater()
         self.section_widgets.clear()
-        if self.config_editor.parent():
-            self.layout.removeWidget(self.config_editor)
 
         for section in self.sections:
             widget = QtWidgets.QWidget()
@@ -444,8 +450,6 @@ class LauncherWindow(QtWidgets.QMainWindow):
             self.layout.addWidget(sec)
             self.section_widgets.append(sec)
 
-        # Add settings area at the bottom
-        self.layout.addWidget(self.config_editor)
         self.config_editor.reload()
         self.adjustSize()
 
