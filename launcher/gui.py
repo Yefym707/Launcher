@@ -94,7 +94,9 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def reload_items(self) -> None:
         """Reload items from configuration and rebuild UI."""
         self.sections = load_config()
-        self.tool_box.clear()
+        while self.tool_box.count():
+            self.tool_box.removeItem(0)
+
 
         for section in self.sections:
             widget = QtWidgets.QWidget()
