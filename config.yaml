@@ -1,14 +1,20 @@
-items:
-  - name: Firefox
-    type: application
-    command: firefox
-    icon: /usr/share/icons/hicolor/48x48/apps/firefox.png
-  - name: Terminal
-    type: application
-    command: gnome-terminal
-  - name: Update Script
-    type: script
-    command: /home/user/update.sh
-  - name: Open GitHub
-    type: url
-    command: https://github.com
+sections:
+  - name: Applications
+    items:
+      - name: Firefox
+        type: application
+        command: firefox
+        icon: /usr/share/icons/hicolor/48x48/apps/firefox.png
+      - name: Terminal
+        type: application
+        command: gnome-terminal
+  - name: Scripts
+    items:
+      - name: Update Script
+        type: script
+        command: /home/user/update.sh
+  - name: Websites
+    items:
+      - name: Open GitHub
+        type: url
+        command: https://github.com
