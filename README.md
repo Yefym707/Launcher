@@ -22,7 +22,9 @@ pip install -r requirements.txt
 
 ## Usage
 
-Run the launcher from the repository root:
+Run the launcher from the repository root. The application starts hidden in
+the system tray to keep your desktop uncluttered. Click the tray icon to
+toggle the launcher window:
 
 ```bash
 python -m launcher.main

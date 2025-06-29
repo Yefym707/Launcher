@@ -52,6 +52,15 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Launcher")
         # Apply the global style sheet for a consistent minimalistic look
         self.setStyleSheet(APP_STYLE)
+        # Make the window frameless and stay on top so it behaves more like a
+        # popup launcher rather than a traditional application window.
+        flags = (
+            self.windowFlags()
+            | QtCore.Qt.FramelessWindowHint
+            | QtCore.Qt.Tool
+            | QtCore.Qt.WindowStaysOnTopHint
+        )
+        self.setWindowFlags(flags)
         self.sections: List[Dict[str, Any]] = []
         self.central = QtWidgets.QWidget()
         self.setCentralWidget(self.central)
@@ -63,6 +72,11 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
         self._create_menu()
         self.reload_items()
+
+        # Create tray icon used to show or hide the launcher on demand and
+        # start hidden to minimise screen usage.
+        self._create_tray()
+        self.hide()
 
     def _create_menu(self) -> None:
         menubar = self.menuBar()
@@ -99,6 +113,31 @@ class LauncherWindow(QtWidgets.QMainWindow):
         reload_action = QtGui.QAction("Reload", self)
         reload_action.triggered.connect(self.reload_items)
         config_menu.addAction(reload_action)
+
+    def _create_tray(self) -> None:
+        """Set up system tray icon used to toggle the launcher window."""
+        icon = QtGui.QIcon.fromTheme("system-run")
+        self.tray = QtWidgets.QSystemTrayIcon(icon, self)
+        self.tray.setToolTip("Launcher")
+        menu = QtWidgets.QMenu()
+        toggle_action = menu.addAction("Show/Hide")
+        toggle_action.triggered.connect(self._toggle_visibility)
+        quit_action = menu.addAction("Quit")
+        quit_action.triggered.connect(QtWidgets.QApplication.quit)
+        self.tray.setContextMenu(menu)
+        self.tray.activated.connect(self._tray_activated)
+        self.tray.show()
+
+    def _tray_activated(self, reason: QtWidgets.QSystemTrayIcon.ActivationReason) -> None:
+        if reason == QtWidgets.QSystemTrayIcon.Trigger:
+            self._toggle_visibility()
+
+    def _toggle_visibility(self) -> None:
+        if self.isVisible():
+            self.hide()
+        else:
+            self.show()
+            self.activateWindow()
 
     def add_section(self) -> None:
         dlg = SectionDialog(self)
