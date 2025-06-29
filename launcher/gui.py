@@ -9,6 +9,39 @@ from typing import List, Dict, Any
 
 from PySide6 import QtWidgets, QtGui, QtCore
 
+# Application-wide style sheet for a clean minimalistic look with rounded
+# corners. The palette uses light grays and subtle hover effects.
+APP_STYLE = """
+QWidget {
+    background-color: #f5f5f5;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+}
+QToolBox::tab {
+    background: #ffffff;
+    border: 1px solid #cccccc;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    margin-top: 2px;
+    padding: 4px 8px;
+}
+QToolBox::tab:selected {
+    background: #e6e6e6;
+}
+QToolButton {
+    background: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 12px;
+    padding: 6px;
+}
+QToolButton:hover {
+    background: #f0f0f0;
+}
+QToolButton:pressed {
+    background: #e0e0e0;
+}
+"""
+
 from .config import load_config, save_config, CONFIG_PATH
 from .dialogs import ItemDialog, ItemData, SectionDialog
 
@@ -17,11 +50,15 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Launcher")
+        # Apply the global style sheet for a consistent minimalistic look
+        self.setStyleSheet(APP_STYLE)
         self.sections: List[Dict[str, Any]] = []
         self.central = QtWidgets.QWidget()
         self.setCentralWidget(self.central)
         self.layout = QtWidgets.QVBoxLayout(self.central)
+        self.layout.setContentsMargins(10, 10, 10, 10)
         self.tool_box = QtWidgets.QToolBox()
+        self.tool_box.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.layout.addWidget(self.tool_box)
 
         self._create_menu()
@@ -102,6 +139,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
             widget = QtWidgets.QWidget()
             grid = QtWidgets.QGridLayout(widget)
             grid.setSpacing(10)
+            grid.setContentsMargins(0, 0, 0, 0)
 
             columns = 4
             row = col = 0
