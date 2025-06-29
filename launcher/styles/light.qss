@@ -18,11 +18,15 @@ QToolButton {
     background: #e0e0e0;
     border: 1px solid #c0c0c0;
     border-radius: 10px;
-    padding: 6px;
+    padding: 8px;
 }
 QToolButton:hover {
     background: #d0d0d0;
 }
 QToolButton:pressed {
     background: #b0b0b0;
+}
+
+QLineEdit, QComboBox, QPlainTextEdit {
+    padding: 4px;
 }
