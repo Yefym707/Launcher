@@ -318,7 +318,8 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(central)
 
         self.layout = QtWidgets.QHBoxLayout(central)
-        self.layout.setContentsMargins(8, 4, 8, 4)
+        # leave a small gap of 5px above and below the section buttons
+        self.layout.setContentsMargins(8, 5, 8, 5)
         self.section_widgets: List[QtWidgets.QWidget] = []
 
         self._create_menu()
@@ -476,6 +477,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.section_widgets.append(settings_section)
 
         self.adjustSize()
+        # match window height to the button height plus 5px padding on top and bottom
+        if self.section_widgets:
+            btn_h = self.section_widgets[0].button.sizeHint().height()
+            self.setFixedHeight(btn_h + 10)
 
     # --- actions ---
     def launch_item(self, item: Dict[str, Any]) -> None:
