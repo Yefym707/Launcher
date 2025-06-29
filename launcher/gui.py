@@ -78,6 +78,138 @@ class ConfigEditor(QtWidgets.QWidget):
         CONFIG_PATH.write_text(self.editor.toPlainText(), encoding="utf-8")
 
 
+class ConfigManager(QtWidgets.QWidget):
+    """Interactive interface to manage ``config.yaml`` without editing text."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.sections: List[Dict[str, Any]] = []
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        # --- section list ---
+        sec_layout = QtWidgets.QHBoxLayout()
+        self.section_list = QtWidgets.QListWidget()
+        self.section_list.currentRowChanged.connect(self._show_items)
+        sec_buttons = QtWidgets.QVBoxLayout()
+        self.add_section_btn = QtWidgets.QPushButton("Add")
+        self.add_section_btn.clicked.connect(self._add_section)
+        self.edit_section_btn = QtWidgets.QPushButton("Edit")
+        self.edit_section_btn.clicked.connect(self._edit_section)
+        self.remove_section_btn = QtWidgets.QPushButton("Remove")
+        self.remove_section_btn.clicked.connect(self._remove_section)
+        for b in (self.add_section_btn, self.edit_section_btn, self.remove_section_btn):
+            sec_buttons.addWidget(b)
+        sec_buttons.addStretch()
+        sec_layout.addWidget(self.section_list, 1)
+        sec_layout.addLayout(sec_buttons)
+
+        # --- item list ---
+        item_layout = QtWidgets.QHBoxLayout()
+        self.item_list = QtWidgets.QListWidget()
+        item_buttons = QtWidgets.QVBoxLayout()
+        self.add_item_btn = QtWidgets.QPushButton("Add")
+        self.add_item_btn.clicked.connect(self._add_item)
+        self.edit_item_btn = QtWidgets.QPushButton("Edit")
+        self.edit_item_btn.clicked.connect(self._edit_item)
+        self.remove_item_btn = QtWidgets.QPushButton("Remove")
+        self.remove_item_btn.clicked.connect(self._remove_item)
+        for b in (self.add_item_btn, self.edit_item_btn, self.remove_item_btn):
+            item_buttons.addWidget(b)
+        item_buttons.addStretch()
+        item_layout.addWidget(self.item_list, 1)
+        item_layout.addLayout(item_buttons)
+
+        # --- save/reload ---
+        bottom_layout = QtWidgets.QHBoxLayout()
+        self.reload_btn = QtWidgets.QPushButton("Reload")
+        self.reload_btn.clicked.connect(self.reload)
+        self.save_btn = QtWidgets.QPushButton("Save")
+        self.save_btn.clicked.connect(self.save)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(self.reload_btn)
+        bottom_layout.addWidget(self.save_btn)
+
+        layout.addLayout(sec_layout)
+        layout.addLayout(item_layout)
+        layout.addLayout(bottom_layout)
+
+        self.reload()
+
+    # --- data helpers ---
+    def reload(self) -> None:
+        self.sections = load_config()
+        self.section_list.clear()
+        for sec in self.sections:
+            self.section_list.addItem(sec.get("name", ""))
+        if self.section_list.count() > 0:
+            self.section_list.setCurrentRow(0)
+
+    def save(self) -> None:
+        save_config(self.sections)
+
+    def _show_items(self, idx: int) -> None:
+        self.item_list.clear()
+        if idx < 0 or idx >= len(self.sections):
+            return
+        for it in self.sections[idx].get("items", []):
+            self.item_list.addItem(it.get("name", ""))
+
+    # --- section actions ---
+    def _add_section(self) -> None:
+        dlg = SectionDialog(self)
+        if dlg.exec() == QtWidgets.QDialog.Accepted:
+            self.sections.append({"name": dlg.get_name(), "items": []})
+            self.section_list.addItem(dlg.get_name())
+            self.section_list.setCurrentRow(self.section_list.count() - 1)
+
+    def _edit_section(self) -> None:
+        idx = self.section_list.currentRow()
+        if idx < 0:
+            return
+        dlg = SectionDialog(self, self.sections[idx].get("name", ""))
+        if dlg.exec() == QtWidgets.QDialog.Accepted:
+            self.sections[idx]["name"] = dlg.get_name()
+            self.section_list.item(idx).setText(dlg.get_name())
+
+    def _remove_section(self) -> None:
+        idx = self.section_list.currentRow()
+        if idx < 0:
+            return
+        self.section_list.takeItem(idx)
+        del self.sections[idx]
+        self._show_items(self.section_list.currentRow())
+
+    # --- item actions ---
+    def _add_item(self) -> None:
+        sec_idx = self.section_list.currentRow()
+        if sec_idx < 0:
+            return
+        dlg = ItemDialog(self)
+        if dlg.exec() == QtWidgets.QDialog.Accepted:
+            self.sections[sec_idx].setdefault("items", []).append(dlg.get_data().__dict__)
+            self.item_list.addItem(dlg.get_data().name)
+
+    def _edit_item(self) -> None:
+        sec_idx = self.section_list.currentRow()
+        item_idx = self.item_list.currentRow()
+        if sec_idx < 0 or item_idx < 0:
+            return
+        current = ItemData(**self.sections[sec_idx]["items"][item_idx])
+        dlg = ItemDialog(self, current)
+        if dlg.exec() == QtWidgets.QDialog.Accepted:
+            self.sections[sec_idx]["items"][item_idx] = dlg.get_data().__dict__
+            self.item_list.item(item_idx).setText(dlg.get_data().name)
+
+    def _remove_item(self) -> None:
+        sec_idx = self.section_list.currentRow()
+        item_idx = self.item_list.currentRow()
+        if sec_idx < 0 or item_idx < 0:
+            return
+        self.item_list.takeItem(item_idx)
+        del self.sections[sec_idx]["items"][item_idx]
+
+
 class LauncherWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -102,7 +234,8 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.tabs = QtWidgets.QTabWidget()
         self.tabs.setTabPosition(QtWidgets.QTabWidget.North)
         self.layout.addWidget(self.tabs)
-        self.config_editor = ConfigEditor()
+        # Interactive config editor
+        self.config_editor = ConfigManager()
 
         self._create_menu()
         self.menuBar().hide()

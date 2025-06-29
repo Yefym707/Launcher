@@ -35,13 +35,11 @@ file to change sections, buttons, icons and commands.
 
 ### Editing within the app
 
-Use the **Configure** options in the tray icon menu to manage sections and
-items. Changes are saved back to `config.yaml` and the UI can be reloaded
+Use the **Configure** options in the tray icon menu or open the **Settings**
+tab to manage sections and items without editing YAML manually. The Settings
+tab presents an interactive list where you can add, edit and remove sections
+or items. Changes are saved back to `config.yaml` and the UI can be reloaded
 from the same menu.
-
-The launcher also includes a **Settings** tab with a built-in text editor for
-`config.yaml`. Open this tab to quickly tweak your configuration and save the
-file without leaving the application.
 
 ## Configuration file format
 
