@@ -321,9 +321,6 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.layout.setContentsMargins(8, 4, 8, 4)
         self.section_widgets: List[QtWidgets.QWidget] = []
 
-        # settings widget which will be added as a regular section
-        self.config_editor = ConfigManager()
-
         self._create_menu()
         self.menuBar().hide()
         self.reload_items()
@@ -470,14 +467,14 @@ class LauncherWindow(QtWidgets.QMainWindow):
             self.section_widgets.append(sec)
 
         # settings section appended after all user defined sections
-        settings_layout = QtWidgets.QVBoxLayout()
-        settings_layout.addWidget(self.config_editor)
-        settings_section = CollapsibleSection("Settings")
-        settings_section.setContentLayout(settings_layout)
+        settings_section = DropdownSection(
+            "Settings",
+            [{"name": "Open Settings"}],
+            lambda _item: self._open_settings(),
+        )
         self.layout.addWidget(settings_section)
         self.section_widgets.append(settings_section)
 
-        self.config_editor.reload()
         self.adjustSize()
 
     # --- actions ---
@@ -500,6 +497,18 @@ class LauncherWindow(QtWidgets.QMainWindow):
                 "Launch Failed",
                 f"Failed to launch {item.get('name', '')}: {exc}",
             )
+
+    def _open_settings(self) -> None:
+        """Show the configuration manager in a popup dialog."""
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("Settings")
+        dlg.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        layout = QtWidgets.QVBoxLayout(dlg)
+        editor = ConfigManager(dlg)
+        layout.addWidget(editor)
+        editor.reload()
+        dlg.exec()
+        self.reload_items()
 
 
     def _toggle_theme(self) -> None:
