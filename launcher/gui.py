@@ -48,6 +48,36 @@ from .config import load_config, save_config, CONFIG_PATH
 from .dialogs import ItemDialog, ItemData, SectionDialog
 
 
+class ConfigEditor(QtWidgets.QWidget):
+    """Simple text editor for editing ``config.yaml`` within the UI."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        layout = QtWidgets.QVBoxLayout(self)
+        self.editor = QtWidgets.QPlainTextEdit()
+        layout.addWidget(self.editor)
+
+        buttons = QtWidgets.QHBoxLayout()
+        self.reload_button = QtWidgets.QPushButton("Reload")
+        self.reload_button.clicked.connect(self.reload)
+        self.save_button = QtWidgets.QPushButton("Save")
+        self.save_button.clicked.connect(self.save)
+        buttons.addStretch()
+        buttons.addWidget(self.reload_button)
+        buttons.addWidget(self.save_button)
+        layout.addLayout(buttons)
+
+        self.reload()
+
+    def reload(self) -> None:
+        if CONFIG_PATH.exists():
+            text = CONFIG_PATH.read_text(encoding="utf-8")
+            self.editor.setPlainText(text)
+
+    def save(self) -> None:
+        CONFIG_PATH.write_text(self.editor.toPlainText(), encoding="utf-8")
+
+
 class LauncherWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -72,6 +102,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.tabs = QtWidgets.QTabWidget()
         self.tabs.setTabPosition(QtWidgets.QTabWidget.North)
         self.layout.addWidget(self.tabs)
+        self.config_editor = ConfigEditor()
 
         self._create_menu()
         self.menuBar().hide()
@@ -220,6 +251,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
             scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
 
             self.tabs.addTab(scroll, section.get("name", ""))
+
+        # Add settings tab with embedded config editor
+        self.config_editor.reload()
+        self.tabs.addTab(self.config_editor, "Settings")
 
     # --- actions ---
     def launch_item(self, item: Dict[str, Any]) -> None:

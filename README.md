@@ -39,6 +39,10 @@ Use the **Configure** options in the tray icon menu to manage sections and
 items. Changes are saved back to `config.yaml` and the UI can be reloaded
 from the same menu.
 
+The launcher also includes a **Settings** tab with a built-in text editor for
+`config.yaml`. Open this tab to quickly tweak your configuration and save the
+file without leaving the application.
+
 ## Configuration file format
 
 ```yaml
