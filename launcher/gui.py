@@ -224,8 +224,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         )
         self.setWindowFlags(flags)
         screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
-        self.setGeometry(0, 0, screen.width(), 80)
-        self.setFixedHeight(80)
+        self._default_height = 80
+        self._settings_height = 480
+        self.setGeometry(0, 0, screen.width(), self._default_height)
+        self.setFixedHeight(self._default_height)
         self.sections: List[Dict[str, Any]] = []
         self.central = QtWidgets.QWidget()
         self.setCentralWidget(self.central)
@@ -236,6 +238,8 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.layout.addWidget(self.tabs)
         # Interactive config editor
         self.config_editor = ConfigManager()
+
+        self.tabs.currentChanged.connect(self._adjust_height)
 
         self._create_menu()
         self.menuBar().hide()
@@ -322,6 +326,17 @@ class LauncherWindow(QtWidgets.QMainWindow):
             self.setGeometry(0, 0, screen.width(), self.height())
             self.show()
             self.activateWindow()
+
+    def _adjust_height(self, index: int) -> None:
+        """Expand window when Settings tab is active for easier editing."""
+        title = self.tabs.tabText(index)
+        if title == "Settings":
+            new_height = self._settings_height
+        else:
+            new_height = self._default_height
+        screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+        self.setFixedHeight(new_height)
+        self.setGeometry(0, 0, screen.width(), new_height)
 
     def add_section(self) -> None:
         dlg = SectionDialog(self)
