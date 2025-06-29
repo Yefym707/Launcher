@@ -19,7 +19,7 @@ from .config import (
     load_panel_geometry,
     save_panel_geometry,
 )
-from .dialogs import ItemDialog, ItemData, SectionDialog
+from .dialogs import ItemDialog, ItemData, SectionDialog, ListSelectDialog
 
 
 def load_stylesheet(theme: str) -> str:
@@ -275,20 +275,17 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self._drag_pos: QtCore.QPoint | None = None
 
         self.sections: List[Dict[str, Any]] = []
-        # Use a tab widget so the main interface and settings are separated
-        self.tabs = QtWidgets.QTabWidget()
-        self.setCentralWidget(self.tabs)
 
-        # --- launcher page ---
-        self.launcher_page = QtWidgets.QWidget()
-        self.layout = QtWidgets.QHBoxLayout(self.launcher_page)
+        # central widget that will contain all collapsible sections
+        central = QtWidgets.QWidget()
+        self.setCentralWidget(central)
+
+        self.layout = QtWidgets.QHBoxLayout(central)
         self.layout.setContentsMargins(8, 4, 8, 4)
         self.section_widgets: List[CollapsibleSection] = []
-        self.tabs.addTab(self.launcher_page, "Launcher")
 
-        # --- settings page ---
+        # settings widget which will be added as a regular section
         self.config_editor = ConfigManager()
-        self.tabs.addTab(self.config_editor, "Settings")
 
         self._create_menu()
         self.menuBar().hide()
@@ -450,6 +447,14 @@ class LauncherWindow(QtWidgets.QMainWindow):
             self.layout.addWidget(sec)
             self.section_widgets.append(sec)
 
+        # settings section appended after all user defined sections
+        settings_layout = QtWidgets.QVBoxLayout()
+        settings_layout.addWidget(self.config_editor)
+        settings_section = CollapsibleSection("Settings")
+        settings_section.setContentLayout(settings_layout)
+        self.layout.addWidget(settings_section)
+        self.section_widgets.append(settings_section)
+
         self.config_editor.reload()
         self.adjustSize()
 
@@ -515,7 +520,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         if sec_idx is None or not self.sections[sec_idx].get("items"):
             return
         names = [it.get("name", "") for it in self.sections[sec_idx]["items"]]
-        item, ok = QtWidgets.QInputDialog.getItem(self, "Edit Item", "Select item", names, 0, False)
+        item, ok = ListSelectDialog.get_item("Edit Item", "Select item", names, self)
         if ok and item:
             idx = names.index(item)
             current = ItemData(**self.sections[sec_idx]["items"][idx])
@@ -532,7 +537,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         if sec_idx is None or not self.sections[sec_idx].get("items"):
             return
         names = [it.get("name", "") for it in self.sections[sec_idx]["items"]]
-        item, ok = QtWidgets.QInputDialog.getItem(self, "Remove Item", "Select item", names, 0, False)
+        item, ok = ListSelectDialog.get_item("Remove Item", "Select item", names, self)
         if ok and item:
             idx = names.index(item)
             del self.sections[sec_idx]["items"][idx]
@@ -541,7 +546,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
     def _select_section(self, title: str, label: str) -> int | None:
         names = [sec.get("name", "") for sec in self.sections]
-        section, ok = QtWidgets.QInputDialog.getItem(self, title, label, names, 0, False)
+        section, ok = ListSelectDialog.get_item(title, label, names, self)
         if ok and section:
             return names.index(section)
         return None

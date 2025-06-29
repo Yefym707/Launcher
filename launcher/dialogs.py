@@ -31,6 +31,9 @@ class ItemDialog(QtWidgets.QDialog):
 
         self.type_combo = QtWidgets.QComboBox()
         self.type_combo.addItems(["application", "script", "url"])
+        self.type_combo.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        self.type_combo.setFixedHeight(24)
+        self.type_combo.view().setFixedHeight(120)
         if data:
             index = self.type_combo.findText(data.type)
             self.type_combo.setCurrentIndex(max(0, index))
@@ -101,3 +104,32 @@ class SectionDialog(QtWidgets.QDialog):
     def get_icon(self) -> str | None:
         text = self.icon_edit.text().strip()
         return text or None
+
+
+class ListSelectDialog(QtWidgets.QDialog):
+    """Simple dialog with a combo box for selecting from a list."""
+
+    def __init__(self, title: str, label: str, items: list[str], parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(title)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(QtWidgets.QLabel(label))
+
+        self.combo = QtWidgets.QComboBox()
+        self.combo.addItems(items)
+        self.combo.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        self.combo.setFixedHeight(24)
+        self.combo.view().setFixedHeight(120)
+        layout.addWidget(self.combo)
+
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    @staticmethod
+    def get_item(title: str, label: str, items: list[str], parent: QtWidgets.QWidget | None = None) -> tuple[str, bool]:
+        dlg = ListSelectDialog(title, label, items, parent)
+        ok = dlg.exec() == QtWidgets.QDialog.Accepted
+        return dlg.combo.currentText(), ok
