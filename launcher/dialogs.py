@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import Dict, Any
 
 from PySide6 import QtWidgets, QtGui
@@ -64,3 +64,23 @@ class ItemDialog(QtWidgets.QDialog):
             command=self.command_edit.text().strip(),
             icon=self.icon_edit.text().strip() or None,
         )
+
+
+class SectionDialog(QtWidgets.QDialog):
+    """Dialog to create or edit sections."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None, name: str = "") -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Section")
+
+        layout = QtWidgets.QFormLayout(self)
+        self.name_edit = QtWidgets.QLineEdit(name)
+        layout.addRow("Name", self.name_edit)
+
+        button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addRow(button_box)
+
+    def get_name(self) -> str:
+        return self.name_edit.text().strip()

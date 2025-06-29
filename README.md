@@ -6,6 +6,7 @@ This project is a simple customizable launcher written in Python using
 ## Features
 
 - **Grid interface** with icons and names for each item.
+- **Organize items into sections** displayed as collapsible lists.
 - **Configurable** via external YAML file (`config.yaml`).
 - Launch applications, scripts and open URLs.
 - Edit items directly from the application or by modifying `config.yaml`.
@@ -28,31 +29,37 @@ python -m launcher.main
 ```
 
 The launcher reads `config.yaml` located in the project root. Modify this
-file to change buttons, icons and commands.
+file to change sections, buttons, icons and commands.
 
 ### Editing within the app
 
-Use the **Config** menu in the application window to add, edit or remove
-entries. Changes are saved back to `config.yaml` and the UI can be reloaded
+Use the **Config** menu in the application window to manage sections and
+items. Changes are saved back to `config.yaml` and the UI can be reloaded
 using the same menu.
 
 ## Configuration file format
 
 ```yaml
-items:
-  - name: Firefox
-    type: application
-    command: firefox
-    icon: /usr/share/icons/hicolor/48x48/apps/firefox.png
-  - name: Terminal
-    type: application
-    command: gnome-terminal
-  - name: Update Script
-    type: script
-    command: /home/user/update.sh
-  - name: Open GitHub
-    type: url
-    command: https://github.com
+sections:
+  - name: Applications
+    items:
+      - name: Firefox
+        type: application
+        command: firefox
+        icon: /usr/share/icons/hicolor/48x48/apps/firefox.png
+      - name: Terminal
+        type: application
+        command: gnome-terminal
+  - name: Scripts
+    items:
+      - name: Update Script
+        type: script
+        command: /home/user/update.sh
+  - name: Websites
+    items:
+      - name: Open GitHub
+        type: url
+        command: https://github.com
 ```
 
 Each item has:
@@ -61,6 +68,11 @@ Each item has:
 - `type`: one of `application`, `script` or `url`.
 - `command`: command to run or URL to open.
 - `icon` (optional): path to an icon image.
+
+Each section has:
+
+- `name`: section title displayed in the launcher.
+- `items`: list of items within the section.
 
 ## Extending
 
