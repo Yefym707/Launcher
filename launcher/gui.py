@@ -7,45 +7,27 @@ import webbrowser
 from pathlib import Path
 from typing import List, Dict, Any
 
+import yaml
+
 from PySide6 import QtWidgets, QtGui, QtCore
 
-# Dark professional style sheet for the panel-like launcher
-APP_STYLE = """
-QWidget {
-    background-color: #2b2b2b;
-    color: #ffffff;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-}
-QTabWidget::pane {
-    border: none;
-}
-QTabBar::tab {
-    background: #3c3c3c;
-    color: #dddddd;
-    padding: 4px 8px;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-}
-QTabBar::tab:selected {
-    background: #555555;
-}
-QToolButton {
-    background: #3c3c3c;
-    border: 1px solid #555555;
-    border-radius: 10px;
-    padding: 6px;
-}
-QToolButton:hover {
-    background: #4c4c4c;
-}
-QToolButton:pressed {
-    background: #626262;
-}
-"""
-
-from .config import load_config, save_config, CONFIG_PATH, load_panel_position
+from .config import (
+    load_config,
+    save_config,
+    CONFIG_PATH,
+    load_theme,
+    load_panel_geometry,
+    save_panel_geometry,
+)
 from .dialogs import ItemDialog, ItemData, SectionDialog
+
+
+def load_stylesheet(theme: str) -> str:
+    """Load QSS stylesheet from the ``styles`` directory."""
+    path = Path(__file__).resolve().parent / "styles" / f"{theme}.qss"
+    if path.exists():
+        return path.read_text(encoding="utf-8")
+    return ""
 
 
 class ConfigEditor(QtWidgets.QWidget):
@@ -236,53 +218,74 @@ class ConfigManager(QtWidgets.QWidget):
         items.insert(row, moved)
 
 
+class CollapsibleSection(QtWidgets.QWidget):
+    """Simple collapsible container with animation."""
+
+    def __init__(self, title: str, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.toggle_button = QtWidgets.QToolButton(text=title, checkable=True, checked=False)
+        self.toggle_button.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        self.toggle_button.setArrowType(QtCore.Qt.RightArrow)
+        self.toggle_button.clicked.connect(self._on_toggled)
+
+        self.content_area = QtWidgets.QScrollArea()
+        self.content_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.content_area.setMaximumHeight(0)
+        self.content_area.setMinimumHeight(0)
+        self.content_area.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+
+        lay = QtWidgets.QVBoxLayout(self)
+        lay.setSpacing(0)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self.toggle_button)
+        lay.addWidget(self.content_area)
+
+        self._anim = QtCore.QPropertyAnimation(self.content_area, b"maximumHeight")
+        self._anim.setDuration(200)
+
+    def setContentLayout(self, layout: QtWidgets.QLayout) -> None:
+        w = QtWidgets.QWidget()
+        w.setLayout(layout)
+        self.content_area.setWidget(w)
+        self._anim.setEndValue(w.sizeHint().height())
+
+    def _on_toggled(self) -> None:
+        checked = self.toggle_button.isChecked()
+        self.toggle_button.setArrowType(QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow)
+        end = self.content_area.widget().sizeHint().height() if checked else 0
+        self._anim.stop()
+        self._anim.setEndValue(end)
+        self._anim.start()
+
+
 class LauncherWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Launcher")
-        # Apply the global style sheet for a consistent minimalistic look
-        self.setStyleSheet(APP_STYLE)
-        # Make the window a frameless panel that spans the top of the screen
-        flags = (
+        self.setWindowFlags(
             self.windowFlags()
             | QtCore.Qt.FramelessWindowHint
             | QtCore.Qt.WindowStaysOnTopHint
         )
-        self.setWindowFlags(flags)
-        screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
-        self._panel_position = load_panel_position()
-        if self._panel_position in ("left", "right"):
-            self._default_span = 100
-            self._settings_span = 300
-        else:
-            self._default_span = 80
-            self._settings_span = 480
-        self._current_span = self._default_span
-        self._set_panel_geometry(self._default_span)
+
+        self.setStyleSheet(load_stylesheet(load_theme()))
+        x, y = load_panel_geometry()
+        self.move(x, y)
+
+        self._drag_pos: QtCore.QPoint | None = None
+
         self.sections: List[Dict[str, Any]] = []
         self.central = QtWidgets.QWidget()
         self.setCentralWidget(self.central)
         self.layout = QtWidgets.QVBoxLayout(self.central)
         self.layout.setContentsMargins(8, 4, 8, 4)
-        self.tabs = QtWidgets.QTabWidget()
-        if self._panel_position == "left":
-            self.tabs.setTabPosition(QtWidgets.QTabWidget.West)
-        elif self._panel_position == "right":
-            self.tabs.setTabPosition(QtWidgets.QTabWidget.East)
-        else:
-            self.tabs.setTabPosition(QtWidgets.QTabWidget.North)
-        self.layout.addWidget(self.tabs)
-        # Interactive config editor
+        self.section_widgets: List[CollapsibleSection] = []
         self.config_editor = ConfigManager()
-
-        self.tabs.currentChanged.connect(self._adjust_height)
 
         self._create_menu()
         self.menuBar().hide()
         self.reload_items()
 
-        # Create tray icon used to show or hide the launcher on demand and
-        # start hidden to minimise screen usage.
         self._create_tray()
         self.hide()
 
@@ -322,6 +325,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         reload_action.triggered.connect(self.reload_items)
         config_menu.addAction(reload_action)
 
+        theme_action = QtGui.QAction("Toggle Theme", self)
+        theme_action.triggered.connect(self._toggle_theme)
+        config_menu.addAction(theme_action)
+
     def _create_tray(self) -> None:
         """Set up system tray icon used to toggle the launcher window."""
         icon = QtGui.QIcon.fromTheme("system-run")
@@ -343,6 +350,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         menu.addSeparator()
         menu.addAction("Open config.yaml", lambda: subprocess.Popen(["xdg-open", str(CONFIG_PATH)]))
         menu.addAction("Reload", self.reload_items)
+        menu.addAction("Toggle Theme", self._toggle_theme)
         menu.addSeparator()
         quit_action = menu.addAction("Quit")
         quit_action.triggered.connect(QtWidgets.QApplication.quit)
@@ -354,38 +362,24 @@ class LauncherWindow(QtWidgets.QMainWindow):
         if reason == QtWidgets.QSystemTrayIcon.Trigger:
             self._toggle_visibility()
 
-    def _set_panel_geometry(self, span: int) -> None:
-        screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
-        if self._panel_position == "top":
-            self.setFixedHeight(span)
-            self.setGeometry(0, 0, screen.width(), span)
-        elif self._panel_position == "bottom":
-            self.setFixedHeight(span)
-            self.setGeometry(0, screen.height() - span, screen.width(), span)
-        elif self._panel_position == "left":
-            self.setFixedWidth(span)
-            self.setGeometry(0, 0, span, screen.height())
-        else:  # right
-            self.setFixedWidth(span)
-            self.setGeometry(screen.width() - span, 0, span, screen.height())
-
     def _toggle_visibility(self) -> None:
         if self.isVisible():
-            self.hide()
+            anim = QtCore.QPropertyAnimation(self, b"windowOpacity")
+            anim.setDuration(200)
+            anim.setStartValue(1.0)
+            anim.setEndValue(0.0)
+            anim.finished.connect(self.hide)
+            anim.start()
+            self._fade = anim
         else:
-            self._set_panel_geometry(self._current_span)
+            self.setWindowOpacity(0.0)
             self.show()
-            self.activateWindow()
-
-    def _adjust_height(self, index: int) -> None:
-        """Expand window when Settings tab is active for easier editing."""
-        title = self.tabs.tabText(index)
-        if title == "Settings":
-            new_span = self._settings_span
-        else:
-            new_span = self._default_span
-        self._current_span = new_span
-        self._set_panel_geometry(new_span)
+            anim = QtCore.QPropertyAnimation(self, b"windowOpacity")
+            anim.setDuration(200)
+            anim.setStartValue(0.0)
+            anim.setEndValue(1.0)
+            anim.start()
+            self._fade = anim
 
     def add_section(self) -> None:
         dlg = SectionDialog(self)
@@ -419,10 +413,12 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def reload_items(self) -> None:
         """Reload items from configuration and rebuild UI."""
         self.sections = load_config()
-        self._panel_position = load_panel_position()
-        while self.tabs.count():
-            self.tabs.removeTab(0)
-
+        for w in self.section_widgets:
+            self.layout.removeWidget(w)
+            w.deleteLater()
+        self.section_widgets.clear()
+        if self.config_editor.parent():
+            self.layout.removeWidget(self.config_editor)
 
         for section in self.sections:
             widget = QtWidgets.QWidget()
@@ -439,26 +435,19 @@ class LauncherWindow(QtWidgets.QMainWindow):
                     button.setIcon(QtGui.QIcon(icon_path))
                 button.setIconSize(QtCore.QSize(48, 48))
                 button.clicked.connect(lambda _, it=item: self.launch_item(it))
+                button.pressed.connect(lambda b=button: self._animate_button(b))
                 layout.addWidget(button)
             layout.addStretch()
 
-            scroll = QtWidgets.QScrollArea()
-            scroll.setWidget(widget)
-            scroll.setWidgetResizable(True)
-            scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
-            scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-            scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+            sec = CollapsibleSection(section.get("name", ""))
+            sec.setContentLayout(layout)
+            self.layout.addWidget(sec)
+            self.section_widgets.append(sec)
 
-            sec_icon = QtGui.QIcon()
-            icon_path = section.get("icon")
-            if icon_path and Path(icon_path).exists():
-                sec_icon = QtGui.QIcon(icon_path)
-            self.tabs.addTab(scroll, sec_icon, section.get("name", ""))
-
-        # Add settings tab with embedded config editor
+        # Add settings area at the bottom
+        self.layout.addWidget(self.config_editor)
         self.config_editor.reload()
-        self.tabs.addTab(self.config_editor, "Settings")
-        self._set_panel_geometry(self._current_span)
+        self.adjustSize()
 
     # --- actions ---
     def launch_item(self, item: Dict[str, Any]) -> None:
@@ -480,6 +469,27 @@ class LauncherWindow(QtWidgets.QMainWindow):
                 "Launch Failed",
                 f"Failed to launch {item.get('name', '')}: {exc}",
             )
+
+    def _animate_button(self, button: QtWidgets.QToolButton) -> None:
+        effect = QtWidgets.QGraphicsOpacityEffect(button)
+        button.setGraphicsEffect(effect)
+        anim = QtCore.QPropertyAnimation(effect, b"opacity")
+        anim.setDuration(150)
+        anim.setStartValue(1.0)
+        anim.setEndValue(0.4)
+        anim.setEasingCurve(QtCore.QEasingCurve.InOutQuad)
+        anim.finished.connect(lambda: effect.setOpacity(1.0))
+        anim.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
+
+    def _toggle_theme(self) -> None:
+        current = load_theme()
+        new = "light" if current == "dark" else "dark"
+        data = {}
+        if CONFIG_PATH.exists():
+            data = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
+        data["theme"] = new
+        CONFIG_PATH.write_text(yaml.dump(data, allow_unicode=True), encoding="utf-8")
+        self.setStyleSheet(load_stylesheet(new))
 
     def add_item(self) -> None:
         if not self.sections:
@@ -531,3 +541,20 @@ class LauncherWindow(QtWidgets.QMainWindow):
         if ok and section:
             return names.index(section)
         return None
+
+    # --- drag handling ---
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
+        if event.button() == QtCore.Qt.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint() - self.pos()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
+        if self._drag_pos is not None and event.buttons() & QtCore.Qt.LeftButton:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
+        if self._drag_pos is not None:
+            self._drag_pos = None
+            save_panel_geometry(self.x(), self.y())
+        super().mouseReleaseEvent(event)
