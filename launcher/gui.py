@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 import webbrowser
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Callable
 
 import yaml
 
@@ -258,6 +258,43 @@ class CollapsibleSection(QtWidgets.QWidget):
         self._anim.start()
 
 
+class DropdownSection(QtWidgets.QWidget):
+    """Section that shows its items in a popup menu outside the main window."""
+
+    def __init__(
+        self,
+        title: str,
+        items: List[Dict[str, Any]],
+        trigger: Callable[[Dict[str, Any]], None],
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._items = items
+        self._trigger = trigger
+
+        self.button = QtWidgets.QToolButton(text=title)
+        self.button.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        self.button.setArrowType(QtCore.Qt.DownArrow)
+        self.button.clicked.connect(self._show_menu)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.button)
+
+    def _show_menu(self) -> None:
+        menu = QtWidgets.QMenu(self)
+        for item in self._items:
+            action = QtGui.QAction(item.get("name", ""), menu)
+            icon_path = item.get("icon")
+            if icon_path and Path(icon_path).exists():
+                action.setIcon(QtGui.QIcon(icon_path))
+            action.triggered.connect(lambda _, it=item: self._trigger(it))
+            menu.addAction(action)
+        pos = self.button.mapToGlobal(QtCore.QPoint(0, self.button.height()))
+        menu.exec(pos)
+
+
 class LauncherWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -282,7 +319,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
         self.layout = QtWidgets.QHBoxLayout(central)
         self.layout.setContentsMargins(8, 4, 8, 4)
-        self.section_widgets: List[CollapsibleSection] = []
+        self.section_widgets: List[QtWidgets.QWidget] = []
 
         # settings widget which will be added as a regular section
         self.config_editor = ConfigManager()
@@ -424,26 +461,11 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.section_widgets.clear()
 
         for section in self.sections:
-            widget = QtWidgets.QWidget()
-            layout = QtWidgets.QHBoxLayout(widget)
-            layout.setSpacing(10)
-            layout.setContentsMargins(10, 10, 10, 10)
-
-            for item in section.get("items", []):
-                button = QtWidgets.QToolButton()
-                button.setText(item.get("name", ""))
-                button.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
-                icon_path = item.get("icon")
-                if icon_path and Path(icon_path).exists():
-                    button.setIcon(QtGui.QIcon(icon_path))
-                button.setIconSize(QtCore.QSize(48, 48))
-                button.clicked.connect(lambda _, it=item: self.launch_item(it))
-                button.pressed.connect(lambda b=button: self._animate_button(b))
-                layout.addWidget(button)
-            layout.addStretch()
-
-            sec = CollapsibleSection(section.get("name", ""))
-            sec.setContentLayout(layout)
+            sec = DropdownSection(
+                section.get("name", ""),
+                section.get("items", []),
+                self.launch_item,
+            )
             self.layout.addWidget(sec)
             self.section_widgets.append(sec)
 
@@ -479,16 +501,6 @@ class LauncherWindow(QtWidgets.QMainWindow):
                 f"Failed to launch {item.get('name', '')}: {exc}",
             )
 
-    def _animate_button(self, button: QtWidgets.QToolButton) -> None:
-        effect = QtWidgets.QGraphicsOpacityEffect(button)
-        button.setGraphicsEffect(effect)
-        anim = QtCore.QPropertyAnimation(effect, b"opacity")
-        anim.setDuration(150)
-        anim.setStartValue(1.0)
-        anim.setEndValue(0.4)
-        anim.setEasingCurve(QtCore.QEasingCurve.InOutQuad)
-        anim.finished.connect(lambda: effect.setOpacity(1.0))
-        anim.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
 
     def _toggle_theme(self) -> None:
         current = load_theme()
