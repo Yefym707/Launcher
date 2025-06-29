@@ -3,10 +3,11 @@
 This project is a simple customizable launcher written in Python using
 [PySide6](https://doc.qt.io/qtforpython/).
 
-## Features
+-## Features
 
-- **Horizontal panel** with icons and names for each item.
-- **Organize items into tabs** for different sections.
+- **Draggable panel** that remembers its position.
+- **Collapsible sections** to save screen space.
+- **Light and dark themes** configurable via `config.yaml` or the menu.
 - **Configurable** via external YAML file (`config.yaml`).
 - Launch applications, scripts and open URLs.
 - Edit items directly from the application or by modifying `config.yaml`.
@@ -44,6 +45,9 @@ from the same menu.
 ## Configuration file format
 
 ```yaml
+theme: dark
+panel:
+  position: top
 sections:
   - name: Applications
     items:
