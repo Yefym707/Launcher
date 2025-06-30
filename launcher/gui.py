@@ -217,47 +217,6 @@ class ConfigManager(QtWidgets.QWidget):
             row -= 1
         items.insert(row, moved)
 
-
-class CollapsibleSection(QtWidgets.QWidget):
-    """Simple collapsible container with animation."""
-
-    def __init__(self, title: str, parent: QtWidgets.QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.toggle_button = QtWidgets.QToolButton(text=title, checkable=True, checked=False)
-        self.toggle_button.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
-        self.toggle_button.setArrowType(QtCore.Qt.RightArrow)
-        self.toggle_button.clicked.connect(self._on_toggled)
-
-        self.content_area = QtWidgets.QScrollArea()
-        self.content_area.setFrameShape(QtWidgets.QFrame.NoFrame)
-        self.content_area.setMaximumHeight(0)
-        self.content_area.setMinimumHeight(0)
-        self.content_area.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-
-        lay = QtWidgets.QVBoxLayout(self)
-        lay.setSpacing(0)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.addWidget(self.toggle_button)
-        lay.addWidget(self.content_area)
-
-        self._anim = QtCore.QPropertyAnimation(self.content_area, b"maximumHeight")
-        self._anim.setDuration(200)
-
-    def setContentLayout(self, layout: QtWidgets.QLayout) -> None:
-        w = QtWidgets.QWidget()
-        w.setLayout(layout)
-        self.content_area.setWidget(w)
-        self._anim.setEndValue(w.sizeHint().height())
-
-    def _on_toggled(self) -> None:
-        checked = self.toggle_button.isChecked()
-        self.toggle_button.setArrowType(QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow)
-        end = self.content_area.widget().sizeHint().height() if checked else 0
-        self._anim.stop()
-        self._anim.setEndValue(end)
-        self._anim.start()
-
-
 class DropdownSection(QtWidgets.QWidget):
     """Section that shows its items in a popup menu outside the main window."""
 
@@ -345,7 +304,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
         self.sections: List[Dict[str, Any]] = []
 
-        # central widget that will contain all collapsible sections
+        # central widget that will contain all dropdown sections
         central = QtWidgets.QWidget()
         self.setCentralWidget(central)
 
