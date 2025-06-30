@@ -301,6 +301,11 @@ class DropdownSection(QtWidgets.QWidget):
 
 
 class LauncherWindow(QtWidgets.QMainWindow):
+    """Main window for the launcher."""
+
+    #: Distance in pixels from the top edge before snapping occurs.
+    SNAP_THRESHOLD = 20
+
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Launcher")
@@ -598,5 +603,8 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
         if self._drag_pos is not None:
             self._drag_pos = None
+            # Snap to the top edge if released close enough
+            if self.y() < self.SNAP_THRESHOLD:
+                self.move(self.x(), 0)
             save_panel_geometry(self.x(), self.y())
         super().mouseReleaseEvent(event)
