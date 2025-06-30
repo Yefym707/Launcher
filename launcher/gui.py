@@ -313,8 +313,13 @@ class DropdownSection(QtWidgets.QWidget):
 
         pos = self.button.mapToGlobal(QtCore.QPoint(0, self.button.height()))
         menu.popup(pos)
-        menu.aboutToHide.connect(lambda: setattr(self, "_menu", None))
+        menu.aboutToHide.connect(self._menu_closed)
         self._menu = menu
+        self.button.setArrowType(QtCore.Qt.UpArrow)
+
+    def _menu_closed(self) -> None:
+        self._menu = None
+        self.button.setArrowType(QtCore.Qt.DownArrow)
 
 
 class LauncherWindow(QtWidgets.QMainWindow):
