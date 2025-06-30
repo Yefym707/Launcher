@@ -26,6 +26,9 @@ QToolButton:hover {
 QToolButton:pressed {
     background: #b0b0b0;
 }
+QToolButton:checked {
+    background: #b0b0b0;
+}
 
 QLineEdit, QComboBox, QPlainTextEdit {
     padding: 4px;

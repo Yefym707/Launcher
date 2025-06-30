@@ -234,6 +234,7 @@ class DropdownSection(QtWidgets.QWidget):
         self.button = QtWidgets.QToolButton(text=title)
         self.button.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.button.setArrowType(QtCore.Qt.DownArrow)
+        self.button.setCheckable(True)
         # Use the pressed signal so that releasing the mouse doesn't immediately
         # trigger another toggle which would reopen the menu.
         self.button.pressed.connect(self._toggle_menu)
@@ -270,6 +271,7 @@ class DropdownSection(QtWidgets.QWidget):
             menu = self._menu
             self._menu = None
             self.button.setArrowType(QtCore.Qt.DownArrow)
+            self.button.setChecked(False)
             menu.close()
             return
 
@@ -290,10 +292,12 @@ class DropdownSection(QtWidgets.QWidget):
         menu.aboutToHide.connect(self._menu_closed)
         self._menu = menu
         self.button.setArrowType(QtCore.Qt.UpArrow)
+        self.button.setChecked(True)
 
     def _menu_closed(self) -> None:
         self._menu = None
         self.button.setArrowType(QtCore.Qt.DownArrow)
+        self.button.setChecked(False)
 
 
 class LauncherWindow(QtWidgets.QMainWindow):
