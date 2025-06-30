@@ -292,6 +292,7 @@ class DropdownSection(QtWidgets.QWidget):
                 return True
         return super().eventFilter(obj, event)
 
+
     def _toggle_menu(self) -> None:
         """Show the dropdown menu or hide it if already visible."""
         if self._menu and self._menu.isVisible():
@@ -301,6 +302,7 @@ class DropdownSection(QtWidgets.QWidget):
         menu = QtWidgets.QMenu(self)
         menu.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         menu.installEventFilter(self)
+
         for item in self._items:
             action = QtGui.QAction(item.get("name", ""), menu)
             icon_path = item.get("icon")
