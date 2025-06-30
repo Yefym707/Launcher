@@ -293,6 +293,8 @@ class DropdownSection(QtWidgets.QWidget):
         self._menu = menu
         self.button.setArrowType(QtCore.Qt.UpArrow)
         self.button.setChecked(True)
+        # reset section highlight after 5 seconds
+        QtCore.QTimer.singleShot(5000, lambda: self.button.setChecked(False))
 
     def _menu_closed(self) -> None:
         self._menu = None
