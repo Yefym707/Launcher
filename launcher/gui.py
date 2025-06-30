@@ -272,6 +272,7 @@ class DropdownSection(QtWidgets.QWidget):
             self._menu = None
             self.button.setArrowType(QtCore.Qt.DownArrow)
             self.button.setChecked(False)
+            self.button.setDown(False)
             menu.close()
             return
 
@@ -298,6 +299,9 @@ class DropdownSection(QtWidgets.QWidget):
         self._menu = None
         self.button.setArrowType(QtCore.Qt.DownArrow)
         self.button.setChecked(False)
+        # Ensure the pressed state is cleared so the style resets even if the
+        # release event was swallowed by the menu.
+        self.button.setDown(False)
 
 
 class LauncherWindow(QtWidgets.QMainWindow):
