@@ -259,6 +259,7 @@ class DropdownSection(QtWidgets.QWidget):
         if self._menu is not None:
             menu = self._menu
             self._menu = None
+            self.button.setArrowType(QtCore.Qt.DownArrow)
             menu.close()
             return
 
