@@ -294,8 +294,8 @@ class DropdownSection(QtWidgets.QWidget):
 
 
     def _toggle_menu(self) -> None:
-        """Show the dropdown menu or hide it if already visible."""
-        if self._menu and self._menu.isVisible():
+        """Show the dropdown menu or hide it if already opening/visible."""
+        if self._menu is not None:
             self._menu.close()
             return
 
@@ -337,6 +337,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.move(x, y)
 
         self._drag_pos: QtCore.QPoint | None = None
+        self._fade: QtCore.QPropertyAnimation | None = None
 
         self.sections: List[Dict[str, Any]] = []
 
@@ -430,14 +431,14 @@ class LauncherWindow(QtWidgets.QMainWindow):
             self._toggle_visibility()
 
     def _toggle_visibility(self) -> None:
+        if self._fade is not None and self._fade.state() == QtCore.QAbstractAnimation.Running:
+            return
         if self.isVisible():
             anim = QtCore.QPropertyAnimation(self, b"windowOpacity")
             anim.setDuration(200)
             anim.setStartValue(1.0)
             anim.setEndValue(0.0)
             anim.finished.connect(self.hide)
-            anim.start()
-            self._fade = anim
         else:
             self.setWindowOpacity(0.0)
             self.show()
@@ -445,8 +446,9 @@ class LauncherWindow(QtWidgets.QMainWindow):
             anim.setDuration(200)
             anim.setStartValue(0.0)
             anim.setEndValue(1.0)
-            anim.start()
-            self._fade = anim
+        anim.finished.connect(lambda: setattr(self, "_fade", None))
+        anim.start()
+        self._fade = anim
 
     def add_section(self) -> None:
         dlg = SectionDialog(self)
