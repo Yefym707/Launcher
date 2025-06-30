@@ -239,6 +239,9 @@ class DropdownSection(QtWidgets.QWidget):
         self.button.pressed.connect(self._toggle_menu)
 
         self._menu: QtWidgets.QMenu | None = None
+        # When the menu is closed by clicking the button, ignore the following
+        # pressed event, so it does not immediately reopen the menu again.
+        self._skip_toggle = False
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setSpacing(0)
@@ -249,12 +252,19 @@ class DropdownSection(QtWidgets.QWidget):
         if obj is self._menu and event.type() == QtCore.QEvent.MouseButtonPress:
             pos = cast(QtGui.QMouseEvent, event).globalPos()
             if self.button.rect().contains(self.button.mapFromGlobal(pos)):
+                # Closing the menu this way triggers the button press as well,
+                # so remember to skip the next toggle invocation.
+                self._skip_toggle = True
                 self._menu.close()
                 return True
         return super().eventFilter(obj, event)
 
-
     def _toggle_menu(self) -> None:
+        if self._skip_toggle:
+            # Ignore this invocation if it immediately follows a click that
+            # closed the menu.
+            self._skip_toggle = False
+            return
         """Show the dropdown menu or hide it if already opening/visible."""
         if self._menu is not None:
             menu = self._menu
