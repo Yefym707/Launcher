@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 import webbrowser
 from pathlib import Path
-from typing import List, Dict, Any, Callable
+from typing import List, Dict, Any, Callable, cast
 
 import yaml
 
@@ -275,15 +275,32 @@ class DropdownSection(QtWidgets.QWidget):
         self.button = QtWidgets.QToolButton(text=title)
         self.button.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.button.setArrowType(QtCore.Qt.DownArrow)
-        self.button.clicked.connect(self._show_menu)
+        self.button.clicked.connect(self._toggle_menu)
+
+        self._menu: QtWidgets.QMenu | None = None
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.button)
 
-    def _show_menu(self) -> None:
+    def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:
+        if obj is self._menu and event.type() == QtCore.QEvent.MouseButtonPress:
+            pos = cast(QtGui.QMouseEvent, event).globalPos()
+            if self.button.rect().contains(self.button.mapFromGlobal(pos)):
+                self._menu.close()
+                return True
+        return super().eventFilter(obj, event)
+
+    def _toggle_menu(self) -> None:
+        """Show the dropdown menu or hide it if already visible."""
+        if self._menu and self._menu.isVisible():
+            self._menu.close()
+            return
+
         menu = QtWidgets.QMenu(self)
+        menu.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        menu.installEventFilter(self)
         for item in self._items:
             action = QtGui.QAction(item.get("name", ""), menu)
             icon_path = item.get("icon")
@@ -291,8 +308,11 @@ class DropdownSection(QtWidgets.QWidget):
                 action.setIcon(QtGui.QIcon(icon_path))
             action.triggered.connect(lambda _, it=item: self._trigger(it))
             menu.addAction(action)
+
         pos = self.button.mapToGlobal(QtCore.QPoint(0, self.button.height()))
-        menu.exec(pos)
+        menu.popup(pos)
+        menu.aboutToHide.connect(lambda: setattr(self, "_menu", None))
+        self._menu = menu
 
 
 class LauncherWindow(QtWidgets.QMainWindow):
