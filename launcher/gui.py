@@ -275,7 +275,9 @@ class DropdownSection(QtWidgets.QWidget):
         self.button = QtWidgets.QToolButton(text=title)
         self.button.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.button.setArrowType(QtCore.Qt.DownArrow)
-        self.button.clicked.connect(self._toggle_menu)
+        # Use the pressed signal so that releasing the mouse doesn't immediately
+        # trigger another toggle which would reopen the menu.
+        self.button.pressed.connect(self._toggle_menu)
 
         self._menu: QtWidgets.QMenu | None = None
 
@@ -296,7 +298,9 @@ class DropdownSection(QtWidgets.QWidget):
     def _toggle_menu(self) -> None:
         """Show the dropdown menu or hide it if already opening/visible."""
         if self._menu is not None:
-            self._menu.close()
+            menu = self._menu
+            self._menu = None
+            menu.close()
             return
 
         menu = QtWidgets.QMenu(self)
