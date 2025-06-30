@@ -302,6 +302,9 @@ class DropdownSection(QtWidgets.QWidget):
         # Ensure the pressed state is cleared so the style resets even if the
         # release event was swallowed by the menu.
         self.button.setDown(False)
+        # Reset skip flag in case the closing click was intercepted by the menu
+        # and no button press event followed.
+        self._skip_toggle = False
 
 
 class LauncherWindow(QtWidgets.QMainWindow):
