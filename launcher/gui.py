@@ -294,8 +294,8 @@ class DropdownSection(QtWidgets.QWidget):
 
 
     def _toggle_menu(self) -> None:
-        """Show the dropdown menu or hide it if already visible."""
-        if self._menu and self._menu.isVisible():
+        """Show the dropdown menu or hide it if already opening/visible."""
+        if self._menu is not None:
             self._menu.close()
             return
 
