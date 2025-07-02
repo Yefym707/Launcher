@@ -11,6 +11,7 @@ This project is a simple customizable launcher written in Python using
 - **Configurable** via external YAML file (`config.yaml`).
 - Launch applications, scripts and open URLs.
 - Edit items directly from the application or by modifying `config.yaml`.
+- **Close button** on the panel to quickly exit the launcher.
 
 ## Installation
 

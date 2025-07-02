@@ -341,6 +341,15 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.menuBar().hide()
         self.reload_items()
 
+        # Close button in the panel
+        self.close_button = QtWidgets.QToolButton()
+        self.close_button.setIcon(
+            self.style().standardIcon(QtWidgets.QStyle.SP_TitleBarCloseButton)
+        )
+        self.close_button.setToolTip("Quit")
+        self.close_button.clicked.connect(QtWidgets.QApplication.quit)
+        self.layout.addWidget(self.close_button)
+
         self._create_tray()
         self.hide()
 
@@ -469,6 +478,11 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def reload_items(self) -> None:
         """Reload items from configuration and rebuild UI."""
         self.sections = load_config()
+
+        # remove close button while rebuilding
+        if hasattr(self, "close_button"):
+            self.layout.removeWidget(self.close_button)
+
         for w in self.section_widgets:
             self.layout.removeWidget(w)
             w.deleteLater()
@@ -491,6 +505,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         )
         self.layout.addWidget(settings_section)
         self.section_widgets.append(settings_section)
+
+        # add close button back at the end
+        if hasattr(self, "close_button"):
+            self.layout.addWidget(self.close_button)
 
         self.adjustSize()
         # match window height to the button height plus 5px padding on top and bottom
